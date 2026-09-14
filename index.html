@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis Finanzas</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-card">
+    <h1>💰 Mis Finanzas</h1>
+    <p class="muted">Controla tus ingresos, gastos, deudas y ahorro.</p>
+    <div id="authMessage" class="auth-message hidden"></div>
+
+    <form id="loginForm" class="auth-form">
+      <label>Correo
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label>Contraseña
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn-primary full-width">Iniciar sesión</button>
+      <p class="auth-switch">¿No tienes cuenta? <a href="#" id="showRegister">Regístrate</a></p>
+    </form>
+
+    <form id="registerForm" class="auth-form hidden">
+      <label>Correo
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label>Contraseña
+        <input type="password" name="password" required minlength="6" autocomplete="new-password">
+      </label>
+      <label>Confirmar contraseña
+        <input type="password" name="confirmPassword" required minlength="6" autocomplete="new-password">
+      </label>
+      <button type="submit" class="btn-primary full-width">Registrarse</button>
+      <p class="auth-switch">¿Ya tienes cuenta? <a href="#" id="showLogin">Inicia sesión</a></p>
+    </form>
+  </div>
+</div>
+
+<div class="app hidden" id="appRoot">
+  <header class="topbar">
+    <h1>💰 Mis Finanzas</h1>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">Resumen</button>
+      <button class="tab-btn" data-tab="transacciones">Transacciones</button>
+      <button class="tab-btn" data-tab="deudas">Deudas</button>
+      <button class="tab-btn" data-tab="ahorro">Ahorro</button>
+      <button class="tab-btn" data-tab="ajustes">Ajustes</button>
+    </nav>
+    <span id="userBadge" class="user-badge hidden"></span>
+    <button id="logoutBtn" class="icon-btn hidden" title="Cerrar sesión">Salir</button>
+    <button id="themeToggle" class="icon-btn" title="Cambiar tema" aria-label="Cambiar tema">🌓</button>
+  </header>
+
+  <main>
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <div class="hero">
+        <span class="hero-label">Balance total</span>
+        <span id="heroBalance" class="hero-figure">$0</span>
+      </div>
+
+      <div class="kpi-row" id="kpiRow"></div>
+
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2>Ingresos vs Gastos (últimos 6 meses)</h2>
+            <div class="legend" id="lineLegend">
+              <span class="legend-item"><span class="dot series-1"></span>Ingresos</span>
+              <span class="legend-item"><span class="dot series-2"></span>Gastos</span>
+            </div>
+          </div>
+          <div id="lineChart" class="chart-box"></div>
+          <button class="link-btn" data-toggle-table="lineTable">Ver como tabla</button>
+          <div id="lineTable" class="table-view hidden"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>Gastos por categoría (este mes)</h2>
+          </div>
+          <div id="barChart" class="chart-box"></div>
+          <button class="link-btn" data-toggle-table="barTable">Ver como tabla</button>
+          <div id="barTable" class="table-view hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRANSACCIONES -->
+    <section id="tab-transacciones" class="tab-panel">
+      <div class="card">
+        <h2>Nueva transacción</h2>
+        <form id="transactionForm" class="form-grid">
+          <label>Tipo
+            <select name="type" id="txType" required>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+            </select>
+          </label>
+          <label>Categoría
+            <select name="category" id="txCategory" required></select>
+          </label>
+          <label>Monto
+            <input type="number" name="amount" min="0.01" step="0.01" required>
+          </label>
+          <label>Fecha
+            <input type="date" name="date" required>
+          </label>
+          <label class="full">Descripción
+            <input type="text" name="description" placeholder="Opcional">
+          </label>
+          <button type="submit" class="btn-primary">Agregar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Historial</h2>
+          <select id="txFilter">
+            <option value="todos">Todos</option>
+            <option value="ingreso">Ingresos</option>
+            <option value="gasto">Gastos</option>
+          </select>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
+          <tbody id="txTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- DEUDAS -->
+    <section id="tab-deudas" class="tab-panel">
+      <div class="kpi-row" id="debtKpiRow"></div>
+
+      <div class="card">
+        <h2>Nueva deuda</h2>
+        <form id="debtForm" class="form-grid">
+          <label>Nombre / persona
+            <input type="text" name="name" required placeholder="Ej. Banco, Juan...">
+          </label>
+          <label>Tipo
+            <select name="type" required>
+              <option value="debo">Yo debo</option>
+              <option value="me_deben">Me deben</option>
+            </select>
+          </label>
+          <label>Monto total
+            <input type="number" name="amount" min="0.01" step="0.01" required>
+          </label>
+          <label>Ya pagado / abonado
+            <input type="number" name="paid" min="0" step="0.01" value="0">
+          </label>
+          <label>Fecha límite
+            <input type="date" name="dueDate">
+          </label>
+          <label class="full">Descripción
+            <input type="text" name="description" placeholder="Opcional">
+          </label>
+          <button type="submit" class="btn-primary">Agregar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Deudas activas</h2>
+        <div id="debtList" class="item-list"></div>
+      </div>
+    </section>
+
+    <!-- AHORRO -->
+    <section id="tab-ahorro" class="tab-panel">
+      <div class="kpi-row" id="savingsKpiRow"></div>
+
+      <div class="card">
+        <h2>Nueva meta de ahorro</h2>
+        <form id="savingsForm" class="form-grid">
+          <label>Nombre de la meta
+            <input type="text" name="name" required placeholder="Ej. Fondo de emergencia">
+          </label>
+          <label>Monto objetivo
+            <input type="number" name="target" min="0.01" step="0.01" required>
+          </label>
+          <label>Monto actual
+            <input type="number" name="current" min="0" step="0.01" value="0">
+          </label>
+          <label>Fecha objetivo
+            <input type="date" name="deadline">
+          </label>
+          <button type="submit" class="btn-primary">Agregar</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Mis metas</h2>
+        <div id="savingsList" class="item-list"></div>
+      </div>
+    </section>
+
+    <!-- AJUSTES -->
+    <section id="tab-ajustes" class="tab-panel">
+      <div class="card">
+        <h2>Ajustes</h2>
+        <label class="full">Moneda
+          <select id="currencySelect">
+            <option value="USD">USD - Dólar</option>
+            <option value="COP">COP - Peso colombiano</option>
+            <option value="MXN">MXN - Peso mexicano</option>
+            <option value="EUR">EUR - Euro</option>
+            <option value="ARS">ARS - Peso argentino</option>
+            <option value="PEN">PEN - Sol peruano</option>
+            <option value="CLP">CLP - Peso chileno</option>
+          </select>
+        </label>
+        <p class="muted" style="margin-top:16px">Tus datos se guardan de forma segura en tu cuenta (Supabase) y solo tú puedes verlos.</p>
+        <button id="exportBtn" class="btn-secondary">Exportar datos (JSON)</button>
+        <button id="clearBtn" class="btn-danger">Borrar todos los datos</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/store.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
