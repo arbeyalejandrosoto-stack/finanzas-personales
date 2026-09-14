@@ -115,19 +115,20 @@ document.getElementById('clearBtn').addEventListener('click', async () => {
 function renderDashboard() {
   const totals = Store.getTotals();
   const heroEl = document.getElementById('heroBalance');
-  heroEl.textContent = formatCurrency(totals.balance);
   heroEl.classList.toggle('negative', totals.balance < 0);
+  animateValue(heroEl, totals.balance);
 
   const month = Store.getCurrentMonthTotals();
   const debts = Store.getDebtTotals();
   const savings = Store.getSavingsTotal();
 
   document.getElementById('kpiRow').innerHTML = `
-    <div class="stat-tile"><div class="label">Ingresos del mes</div><div class="value good">${formatCurrency(month.income)}</div></div>
-    <div class="stat-tile"><div class="label">Gastos del mes</div><div class="value bad">${formatCurrency(month.expense)}</div></div>
-    <div class="stat-tile"><div class="label">Ahorro acumulado</div><div class="value">${formatCurrency(savings)}</div></div>
-    <div class="stat-tile"><div class="label">Deuda neta</div><div class="value ${debts.net >= 0 ? 'good' : 'bad'}">${formatCurrency(debts.net)}</div></div>
+    <div class="stat-tile"><div class="tile-icon income">💵</div><div class="label">Ingresos del mes</div><div class="value good" data-target="${month.income}">${formatCurrency(0)}</div></div>
+    <div class="stat-tile"><div class="tile-icon expense">💸</div><div class="label">Gastos del mes</div><div class="value bad" data-target="${month.expense}">${formatCurrency(0)}</div></div>
+    <div class="stat-tile"><div class="tile-icon savings">🏦</div><div class="label">Ahorro acumulado</div><div class="value" data-target="${savings}">${formatCurrency(0)}</div></div>
+    <div class="stat-tile"><div class="tile-icon debt">🤝</div><div class="label">Deuda neta</div><div class="value ${debts.net >= 0 ? 'good' : 'bad'}" data-target="${debts.net}">${formatCurrency(0)}</div></div>
   `;
+  animateTiles(document.getElementById('kpiRow'));
 
   const series = Store.getMonthlySeries(6);
   renderLineChart(document.getElementById('lineChart'), series);
@@ -184,10 +185,11 @@ function renderTransactions() {
 function renderDebts() {
   const totals = Store.getDebtTotals();
   document.getElementById('debtKpiRow').innerHTML = `
-    <div class="stat-tile"><div class="label">Yo debo</div><div class="value bad">${formatCurrency(totals.owedByMe)}</div></div>
-    <div class="stat-tile"><div class="label">Me deben</div><div class="value good">${formatCurrency(totals.owedToMe)}</div></div>
-    <div class="stat-tile"><div class="label">Balance de deudas</div><div class="value ${totals.net >= 0 ? 'good' : 'bad'}">${formatCurrency(totals.net)}</div></div>
+    <div class="stat-tile"><div class="tile-icon expense">📤</div><div class="label">Yo debo</div><div class="value bad" data-target="${totals.owedByMe}">${formatCurrency(0)}</div></div>
+    <div class="stat-tile"><div class="tile-icon income">📥</div><div class="label">Me deben</div><div class="value good" data-target="${totals.owedToMe}">${formatCurrency(0)}</div></div>
+    <div class="stat-tile"><div class="tile-icon debt">⚖️</div><div class="label">Balance de deudas</div><div class="value ${totals.net >= 0 ? 'good' : 'bad'}" data-target="${totals.net}">${formatCurrency(0)}</div></div>
   `;
+  animateTiles(document.getElementById('debtKpiRow'));
 
   const list = document.getElementById('debtList');
   const debts = Store.data.debts;
@@ -240,9 +242,10 @@ function renderSavings() {
   const total = Store.getSavingsTotal();
   const targetTotal = Store.data.savingsGoals.reduce((s, g) => s + g.target, 0);
   document.getElementById('savingsKpiRow').innerHTML = `
-    <div class="stat-tile"><div class="label">Ahorrado</div><div class="value good">${formatCurrency(total)}</div></div>
-    <div class="stat-tile"><div class="label">Meta total</div><div class="value">${formatCurrency(targetTotal)}</div></div>
+    <div class="stat-tile"><div class="tile-icon savings">🐷</div><div class="label">Ahorrado</div><div class="value good" data-target="${total}">${formatCurrency(0)}</div></div>
+    <div class="stat-tile"><div class="tile-icon neutral">🎯</div><div class="label">Meta total</div><div class="value" data-target="${targetTotal}">${formatCurrency(0)}</div></div>
   `;
+  animateTiles(document.getElementById('savingsKpiRow'));
 
   const list = document.getElementById('savingsList');
   const goals = Store.data.savingsGoals;

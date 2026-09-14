@@ -26,6 +26,37 @@ function svgEl(tag, attrs = {}) {
 }
 
 /**
+ * Animates a number from its current displayed value up/down to `to`, formatting with formatCurrency.
+ */
+function animateValue(el, to, duration = 900) {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const from = parseFloat(el.dataset.rawValue || '0');
+  el.dataset.rawValue = to;
+  if (reduceMotion || from === to) {
+    el.textContent = formatCurrency(to);
+    return;
+  }
+  const start = performance.now();
+  function tick(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = formatCurrency(from + (to - from) * eased);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/**
+ * Runs the count-up animation on every `[data-target]` value inside a freshly-rendered container.
+ */
+function animateTiles(container) {
+  container.querySelectorAll('.value[data-target]').forEach(el => {
+    const target = parseFloat(el.dataset.target);
+    animateValue(el, target);
+  });
+}
+
+/**
  * Line chart: ingresos vs gastos over time. Two categorical series (slot 1 blue, slot 2 orange).
  */
 function renderLineChart(container, series) {
@@ -41,6 +72,16 @@ function renderLineChart(container, series) {
   const stepX = innerW / (series.length - 1 || 1);
 
   const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, width: '100%', height, class: 'chart-svg' });
+
+  const uid = Math.random().toString(36).slice(2, 9);
+  const defs = svgEl('defs');
+  [['series1', 'var(--series-1)'], ['series2', 'var(--series-2)']].forEach(([name, color]) => {
+    const grad = svgEl('linearGradient', { id: `area-${name}-${uid}`, x1: 0, y1: 0, x2: 0, y2: 1 });
+    grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': 0.32 }));
+    grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': 0 }));
+    defs.appendChild(grad);
+  });
+  svg.appendChild(defs);
 
   // gridlines (4 steps) + y ticks
   const steps = 4;
@@ -69,9 +110,22 @@ function renderLineChart(container, series) {
 
   const incomePts = pointsFor('income');
   const expensePts = pointsFor('expense');
+  const baselineY = padding.top + innerH;
 
-  svg.appendChild(svgEl('path', { d: path(incomePts), class: 'chart-line series-1' }));
-  svg.appendChild(svgEl('path', { d: path(expensePts), class: 'chart-line series-2' }));
+  function areaPath(points) {
+    return path(points) +
+      ` L${points[points.length - 1][0].toFixed(1)},${baselineY} L${points[0][0].toFixed(1)},${baselineY} Z`;
+  }
+
+  const incomeArea = svgEl('path', { d: areaPath(incomePts), fill: `url(#area-series1-${uid})`, class: 'chart-area' });
+  const expenseArea = svgEl('path', { d: areaPath(expensePts), fill: `url(#area-series2-${uid})`, class: 'chart-area' });
+  svg.appendChild(incomeArea);
+  svg.appendChild(expenseArea);
+
+  const incomeLine = svgEl('path', { d: path(incomePts), class: 'chart-line series-1' });
+  const expenseLine = svgEl('path', { d: path(expensePts), class: 'chart-line series-2' });
+  svg.appendChild(incomeLine);
+  svg.appendChild(expenseLine);
 
   // x-axis labels
   series.forEach((s, i) => {
@@ -135,6 +189,21 @@ function renderLineChart(container, series) {
 
   container.appendChild(svg);
   container.appendChild(tooltip);
+
+  // animated line draw-in
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  [incomeLine, expenseLine].forEach((lineEl, i) => {
+    if (reduceMotion) return;
+    const length = lineEl.getTotalLength();
+    lineEl.style.transition = 'none';
+    lineEl.style.strokeDasharray = length;
+    lineEl.style.strokeDashoffset = length;
+    lineEl.getBoundingClientRect(); // force reflow
+    requestAnimationFrame(() => {
+      lineEl.style.transition = `stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1) ${i * 0.12}s`;
+      lineEl.style.strokeDashoffset = 0;
+    });
+  });
 }
 
 /**
@@ -155,6 +224,15 @@ function renderBarChart(container, items) {
 
   const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, width: '100%', height, class: 'chart-svg' });
 
+  const uid = Math.random().toString(36).slice(2, 9);
+  const defs = svgEl('defs');
+  const grad = svgEl('linearGradient', { id: `barGradient-${uid}`, x1: 0, y1: 0, x2: 1, y2: 0 });
+  grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': 'var(--series-1)' }));
+  grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': 'var(--accent-b, var(--series-1))' }));
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  const bars = [];
   items.forEach((item, i) => {
     const y = padding.top + i * rowH;
     const barW = Math.max(2, innerW * item.amount / maxVal);
@@ -167,10 +245,12 @@ function renderBarChart(container, items) {
     label.textContent = item.category;
     svg.appendChild(label);
 
-    svg.appendChild(svgEl('rect', {
-      x: padding.left, y: barY, width: barW, height: barH, rx: 4,
-      class: 'chart-bar series-1'
-    }));
+    const bar = svgEl('rect', {
+      x: padding.left, y: barY, width: 0, height: barH, rx: 4,
+      class: 'chart-bar', fill: `url(#barGradient-${uid})`
+    });
+    svg.appendChild(bar);
+    bars.push([bar, barW]);
 
     const valueLabel = svgEl('text', {
       x: padding.left + barW + 8, y: y + rowH / 2 + 4, class: 'chart-value'
@@ -180,6 +260,15 @@ function renderBarChart(container, items) {
   });
 
   container.appendChild(svg);
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  requestAnimationFrame(() => {
+    bars.forEach(([bar, barW], i) => {
+      if (reduceMotion) { bar.setAttribute('width', barW); return; }
+      bar.style.transition = `width .7s cubic-bezier(.22,1,.36,1) ${i * 0.05}s`;
+      bar.setAttribute('width', barW);
+    });
+  });
 }
 
 /**
