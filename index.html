@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mis Finanzas</title>
 <meta name="description" content="Controla tus ingresos, gastos, deudas y ahorro.">
 <meta name="theme-color" content="#2a78d6">
@@ -271,6 +271,24 @@
       </div>
     </section>
   </main>
+
+  <nav class="bottom-nav">
+    <button class="bottom-nav-btn active" data-tab="dashboard">
+      <span class="bottom-nav-icon">📊</span><span class="bottom-nav-label">Resumen</span>
+    </button>
+    <button class="bottom-nav-btn" data-tab="transacciones">
+      <span class="bottom-nav-icon">💳</span><span class="bottom-nav-label">Movs</span>
+    </button>
+    <button class="bottom-nav-btn" data-tab="deudas">
+      <span class="bottom-nav-icon">🤝</span><span class="bottom-nav-label">Deudas</span>
+    </button>
+    <button class="bottom-nav-btn" data-tab="ahorro">
+      <span class="bottom-nav-icon">🏦</span><span class="bottom-nav-label">Ahorro</span>
+    </button>
+    <button class="bottom-nav-btn" data-tab="ajustes">
+      <span class="bottom-nav-icon">⚙️</span><span class="bottom-nav-label">Ajustes</span>
+    </button>
+  </nav>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>

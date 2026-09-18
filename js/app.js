@@ -18,24 +18,27 @@
   if (saved) applyAccentColor(saved);
 })();
 
-// --- Tabs (crossfade transition) ---
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const next = document.getElementById('tab-' + btn.dataset.tab);
-    const current = document.querySelector('.tab-panel.active');
-    if (current === next) return;
+// --- Tabs (crossfade transition, synced between top tabs and bottom nav) ---
+function switchTab(tabName) {
+  const next = document.getElementById('tab-' + tabName);
+  const current = document.querySelector('.tab-panel.active');
+  if (current === next) return;
 
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-
-    if (current) {
-      current.classList.remove('visible');
-      setTimeout(() => current.classList.remove('active'), 220);
-    }
-    next.classList.add('active');
-    requestAnimationFrame(() => requestAnimationFrame(() => next.classList.add('visible')));
-    renderAll();
+  document.querySelectorAll('[data-tab]').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabName);
   });
+
+  if (current) {
+    current.classList.remove('visible');
+    setTimeout(() => current.classList.remove('active'), 220);
+  }
+  next.classList.add('active');
+  requestAnimationFrame(() => requestAnimationFrame(() => next.classList.add('visible')));
+  renderAll();
+}
+
+document.querySelectorAll('.tab-btn, .bottom-nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
 // --- Table toggle ---
