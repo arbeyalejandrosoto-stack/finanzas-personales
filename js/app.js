@@ -129,6 +129,17 @@ document.getElementById('clearBtn').addEventListener('click', async () => {
 });
 
 // --- Rendering ---
+function trendBadge(pct, goodWhenUp) {
+  if (pct === null) return '';
+  const isUp = pct > 0;
+  const isFlat = pct === 0;
+  const isGood = isFlat ? null : (goodWhenUp ? isUp : !isUp);
+  const emoji = isFlat ? '⚪' : (isGood ? '🟢' : '🔴');
+  const sign = isUp ? '+' : (isFlat ? '' : '');
+  const cls = isFlat ? 'neutral' : (isGood ? 'good' : 'bad');
+  return `<div class="trend ${cls}">${emoji} ${sign}${pct.toFixed(0)}% vs mes anterior</div>`;
+}
+
 function renderDashboard() {
   const totals = Store.getTotals();
   const heroEl = document.getElementById('heroBalance');
@@ -138,10 +149,11 @@ function renderDashboard() {
   const month = Store.getCurrentMonthTotals();
   const debts = Store.getDebtTotals();
   const savings = Store.getSavingsTotal();
+  const trend = Store.getMonthOverMonthTrend();
 
   document.getElementById('kpiRow').innerHTML = `
-    <div class="stat-tile"><div class="tile-icon income">💵</div><div class="label">Ingresos del mes</div><div class="value good" data-target="${month.income}">${formatCurrency(0)}</div></div>
-    <div class="stat-tile"><div class="tile-icon expense">💸</div><div class="label">Gastos del mes</div><div class="value bad" data-target="${month.expense}">${formatCurrency(0)}</div></div>
+    <div class="stat-tile"><div class="tile-icon income">💵</div><div class="label">Ingresos del mes</div><div class="value good" data-target="${month.income}">${formatCurrency(0)}</div>${trendBadge(trend.income, true)}</div>
+    <div class="stat-tile"><div class="tile-icon expense">💸</div><div class="label">Gastos del mes</div><div class="value bad" data-target="${month.expense}">${formatCurrency(0)}</div>${trendBadge(trend.expense, false)}</div>
     <div class="stat-tile"><div class="tile-icon savings">🏦</div><div class="label">Ahorro acumulado</div><div class="value" data-target="${savings}">${formatCurrency(0)}</div></div>
     <div class="stat-tile"><div class="tile-icon debt">🤝</div><div class="label">Deuda neta</div><div class="value ${debts.net >= 0 ? 'good' : 'bad'}" data-target="${debts.net}">${formatCurrency(0)}</div></div>
   `;

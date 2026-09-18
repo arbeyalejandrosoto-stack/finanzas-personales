@@ -195,6 +195,18 @@ const Store = {
     return { income, expense };
   },
 
+  getMonthOverMonthTrend() {
+    const [prev, curr] = this.getMonthlySeries(2);
+    function pctChange(c, p) {
+      if (p === 0) return c === 0 ? null : 100;
+      return ((c - p) / p) * 100;
+    }
+    return {
+      income: pctChange(curr.income, prev.income),
+      expense: pctChange(curr.expense, prev.expense)
+    };
+  },
+
   getMonthlySeries(months = 6) {
     const now = new Date();
     const keys = [];
