@@ -354,6 +354,34 @@ input:focus, select:focus {
 .data-table .amount.ingreso { color: var(--success-text); font-weight: 600; }
 .data-table .amount.gasto { color: var(--status-critical); font-weight: 600; }
 
+.cat-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  margin-right: 6px; vertical-align: middle;
+}
+
+.category-group { margin-top: 20px; }
+.category-group h3 { font-size: 13px; color: var(--text-secondary); margin: 0 0 10px; font-weight: 600; }
+.category-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.category-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px 6px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--chip-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip-color) 35%, transparent);
+  font-size: 13px; animation: popIn .3s ease both;
+  transition: transform .15s ease;
+}
+.category-chip:hover { transform: translateY(-1px); }
+.category-chip-emoji { font-size: 14px; }
+.category-chip-name { color: var(--text-primary); font-weight: 500; }
+.category-chip .delete-btn {
+  font-size: 11px; color: var(--text-muted); padding: 0 0 0 4px; line-height: 1;
+}
+.category-chip .delete-btn:hover { color: var(--status-critical); }
+
+input[type="color"] {
+  padding: 3px; height: 38px; cursor: pointer;
+}
+
 .item-list { display: flex; flex-direction: column; gap: 12px; }
 .item-card {
   border: 1px solid var(--border); border-radius: 12px; padding: 14px;

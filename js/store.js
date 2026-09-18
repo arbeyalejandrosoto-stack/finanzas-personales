@@ -1,11 +1,23 @@
-const EXPENSE_CATEGORIES = [
-  'Alimentación', 'Transporte', 'Vivienda', 'Servicios',
-  'Salud', 'Educación', 'Entretenimiento', 'Otros'
+const DEFAULT_CATEGORIES = [
+  { type: 'gasto', name: 'Alimentación', emoji: '🍔', color: '#f97316' },
+  { type: 'gasto', name: 'Transporte', emoji: '🚗', color: '#3b82f6' },
+  { type: 'gasto', name: 'Vivienda', emoji: '🏠', color: '#8b5cf6' },
+  { type: 'gasto', name: 'Servicios', emoji: '💡', color: '#eab308' },
+  { type: 'gasto', name: 'Salud', emoji: '🏥', color: '#ef4444' },
+  { type: 'gasto', name: 'Educación', emoji: '📚', color: '#06b6d4' },
+  { type: 'gasto', name: 'Entretenimiento', emoji: '🎬', color: '#ec4899' },
+  { type: 'gasto', name: 'Otros', emoji: '🔖', color: '#6b7280' },
+  { type: 'ingreso', name: 'Salario', emoji: '💼', color: '#10b981' },
+  { type: 'ingreso', name: 'Freelance', emoji: '💻', color: '#14b8a6' },
+  { type: 'ingreso', name: 'Inversiones', emoji: '📈', color: '#22c55e' },
+  { type: 'ingreso', name: 'Regalo', emoji: '🎁', color: '#f59e0b' },
+  { type: 'ingreso', name: 'Otros', emoji: '🔖', color: '#6b7280' }
 ];
+const FALLBACK_CATEGORY_META = { emoji: '🏷️', color: '#94a3b8' };
 
-const INCOME_CATEGORIES = [
-  'Salario', 'Freelance', 'Inversiones', 'Regalo', 'Otros'
-];
+function mapCategoryFromDb(c) {
+  return { id: c.id, type: c.type, name: c.name, emoji: c.emoji, color: c.color };
+}
 
 function mapDebtFromDb(d) {
   return {
@@ -33,7 +45,8 @@ const Store = {
     settings: { currency: 'USD', locale: navigator.language || 'es-ES' },
     transactions: [],
     debts: [],
-    savingsGoals: []
+    savingsGoals: [],
+    categories: []
   },
   userId: null,
 
@@ -42,11 +55,12 @@ const Store = {
     if (!user) return;
     this.userId = user.id;
 
-    const [settingsRes, txRes, debtsRes, goalsRes] = await Promise.all([
+    const [settingsRes, txRes, debtsRes, goalsRes, categoriesRes] = await Promise.all([
       sb.from('user_settings').select('*').eq('user_id', user.id).maybeSingle(),
       sb.from('transactions').select('*').eq('user_id', user.id),
       sb.from('debts').select('*').eq('user_id', user.id),
-      sb.from('savings_goals').select('*').eq('user_id', user.id)
+      sb.from('savings_goals').select('*').eq('user_id', user.id),
+      sb.from('categories').select('*').eq('user_id', user.id)
     ]);
 
     if (settingsRes.data) {
@@ -55,13 +69,22 @@ const Store = {
     this.data.transactions = (txRes.data || []).map(mapTransactionFromDb);
     this.data.debts = (debtsRes.data || []).map(mapDebtFromDb);
     this.data.savingsGoals = (goalsRes.data || []).map(mapGoalFromDb);
+    this.data.categories = (categoriesRes.data || []).map(mapCategoryFromDb);
+
+    if (this.data.categories.length === 0) {
+      await sb.from('categories').insert(
+        DEFAULT_CATEGORIES.map(c => ({ ...c, user_id: this.userId }))
+      );
+      const seeded = await sb.from('categories').select('*').eq('user_id', user.id);
+      this.data.categories = (seeded.data || []).map(mapCategoryFromDb);
+    }
   },
 
   reset() {
     this.userId = null;
     this.data = {
       settings: { currency: 'USD', locale: navigator.language || 'es-ES' },
-      transactions: [], debts: [], savingsGoals: []
+      transactions: [], debts: [], savingsGoals: [], categories: []
     };
   },
 
@@ -125,6 +148,28 @@ const Store = {
     await sb.from('user_settings').update({ currency }).eq('user_id', this.userId);
   },
 
+  async addCategory({ type, name, emoji, color }) {
+    await sb.from('categories').insert({
+      user_id: this.userId, type, name: name.trim(),
+      emoji: emoji || FALLBACK_CATEGORY_META.emoji, color
+    });
+    await this.loadAll();
+  },
+
+  async deleteCategory(id) {
+    await sb.from('categories').delete().eq('id', id);
+    await this.loadAll();
+  },
+
+  getCategories(type) {
+    return this.data.categories.filter(c => c.type === type);
+  },
+
+  getCategoryMeta(type, name) {
+    const match = this.data.categories.find(c => c.type === type && c.name === name);
+    return match || { ...FALLBACK_CATEGORY_META, name };
+  },
+
   // --- Aggregations ---
 
   getTotals() {
@@ -177,7 +222,10 @@ const Store = {
       totals[t.category] = (totals[t.category] || 0) + t.amount;
     }
     return Object.entries(totals)
-      .map(([category, amount]) => ({ category, amount }))
+      .map(([category, amount]) => {
+        const meta = this.getCategoryMeta('gasto', category);
+        return { category, amount, emoji: meta.emoji, color: meta.color };
+      })
       .sort((a, b) => b.amount - a.amount);
   },
 

@@ -207,7 +207,7 @@ function renderLineChart(container, series) {
 }
 
 /**
- * Horizontal ranked bar chart: gastos por categoría (single hue, magnitude comparison).
+ * Horizontal ranked bar chart: gastos por categoría, cada barra usa el color de su categoría.
  */
 function renderBarChart(container, items) {
   container.innerHTML = '';
@@ -217,20 +217,12 @@ function renderBarChart(container, items) {
   }
   const width = container.clientWidth || 560;
   const rowH = 32;
-  const padding = { top: 8, right: 56, bottom: 8, left: 110 };
+  const padding = { top: 8, right: 56, bottom: 8, left: 130 };
   const height = padding.top + padding.bottom + items.length * rowH;
   const innerW = width - padding.left - padding.right;
   const maxVal = Math.max(...items.map(i => i.amount));
 
   const svg = svgEl('svg', { viewBox: `0 0 ${width} ${height}`, width: '100%', height, class: 'chart-svg' });
-
-  const uid = Math.random().toString(36).slice(2, 9);
-  const defs = svgEl('defs');
-  const grad = svgEl('linearGradient', { id: `barGradient-${uid}`, x1: 0, y1: 0, x2: 1, y2: 0 });
-  grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': 'var(--series-1)' }));
-  grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': 'var(--accent-b, var(--series-1))' }));
-  defs.appendChild(grad);
-  svg.appendChild(defs);
 
   const bars = [];
   items.forEach((item, i) => {
@@ -238,16 +230,17 @@ function renderBarChart(container, items) {
     const barW = Math.max(2, innerW * item.amount / maxVal);
     const barH = 20;
     const barY = y + (rowH - barH) / 2;
+    const color = item.color || 'var(--series-1)';
 
     const label = svgEl('text', {
       x: padding.left - 10, y: y + rowH / 2 + 4, class: 'chart-catlabel', 'text-anchor': 'end'
     });
-    label.textContent = item.category;
+    label.textContent = `${item.emoji ? item.emoji + ' ' : ''}${item.category}`;
     svg.appendChild(label);
 
     const bar = svgEl('rect', {
       x: padding.left, y: barY, width: 0, height: barH, rx: 4,
-      class: 'chart-bar', fill: `url(#barGradient-${uid})`
+      class: 'chart-bar', fill: color
     });
     svg.appendChild(bar);
     bars.push([bar, barW]);

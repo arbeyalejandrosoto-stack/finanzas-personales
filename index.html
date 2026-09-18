@@ -228,9 +228,41 @@
             <option value="CLP">CLP - Peso chileno</option>
           </select>
         </label>
-        <p class="muted" style="margin-top:16px">Tus datos se guardan de forma segura en tu cuenta (Supabase) y solo tú puedes verlos.</p>
+        <p class="muted" style="margin-top:16px">Tus datos se guardan de forma segura en tu cuenta (Supabase) y solo tú puedes verlas.</p>
         <button id="exportBtn" class="btn-secondary">Exportar datos (JSON)</button>
         <button id="clearBtn" class="btn-danger">Borrar todos los datos</button>
+      </div>
+
+      <div class="card">
+        <h2>Categorías personalizadas</h2>
+        <p class="muted">Crea tus propias categorías con emoji y color. El color se usa automáticamente en la gráfica de "Gastos por categoría".</p>
+        <form id="categoryForm" class="form-grid" style="margin-top:12px">
+          <label>Tipo
+            <select name="type" required>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+            </select>
+          </label>
+          <label>Nombre
+            <input type="text" name="name" required placeholder="Ej. Mascotas">
+          </label>
+          <label>Emoji
+            <input type="text" name="emoji" placeholder="🐾" maxlength="4" required>
+          </label>
+          <label>Color
+            <input type="color" name="color" value="#2a78d6">
+          </label>
+          <button type="submit" class="btn-primary">Agregar categoría</button>
+        </form>
+
+        <div class="category-group">
+          <h3>Categorías de gasto</h3>
+          <div id="expenseCategoryList" class="category-list"></div>
+        </div>
+        <div class="category-group">
+          <h3>Categorías de ingreso</h3>
+          <div id="incomeCategoryList" class="category-list"></div>
+        </div>
       </div>
     </section>
   </main>

@@ -35,9 +35,11 @@ document.querySelectorAll('[data-toggle-table]').forEach(btn => {
 // --- Populate category selects ---
 function populateCategories() {
   const type = document.getElementById('txType').value;
-  const cats = type === 'ingreso' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const cats = Store.getCategories(type);
   const select = document.getElementById('txCategory');
-  select.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  select.innerHTML = cats.length
+    ? cats.map(c => `<option value="${c.name}">${c.emoji} ${c.name}</option>`).join('')
+    : '<option value="" disabled selected>Crea una categoría en Ajustes</option>';
 }
 document.getElementById('txType').addEventListener('change', populateCategories);
 populateCategories();
@@ -81,6 +83,19 @@ document.getElementById('savingsForm').addEventListener('submit', async (e) => {
   renderAll();
 });
 
+document.getElementById('categoryForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await Store.addCategory({
+    type: fd.get('type'), name: fd.get('name'),
+    emoji: fd.get('emoji').trim(), color: fd.get('color')
+  });
+  e.target.reset();
+  document.querySelector('#categoryForm [name="color"]').value = '#2a78d6';
+  populateCategories();
+  renderAll();
+});
+
 document.getElementById('txFilter').addEventListener('change', renderTransactions);
 
 // --- Settings ---
@@ -105,9 +120,11 @@ document.getElementById('clearBtn').addEventListener('click', async () => {
   await Promise.all([
     sb.from('transactions').delete().eq('user_id', Store.userId),
     sb.from('debts').delete().eq('user_id', Store.userId),
-    sb.from('savings_goals').delete().eq('user_id', Store.userId)
+    sb.from('savings_goals').delete().eq('user_id', Store.userId),
+    sb.from('categories').delete().eq('user_id', Store.userId)
   ]);
   await Store.loadAll();
+  populateCategories();
   renderAll();
 });
 
@@ -153,7 +170,7 @@ function renderBarTable(items) {
   if (!items.length) { el.innerHTML = '<p class="muted">Sin datos.</p>'; return; }
   el.innerHTML = `<table class="data-table">
     <thead><tr><th>Categoría</th><th>Monto</th></tr></thead>
-    <tbody>${items.map(i => `<tr><td>${i.category}</td><td>${formatCurrency(i.amount)}</td></tr>`).join('')}</tbody>
+    <tbody>${items.map(i => `<tr><td><span class="cat-dot" style="background:${i.color}"></span>${i.emoji} ${i.category}</td><td>${formatCurrency(i.amount)}</td></tr>`).join('')}</tbody>
   </table>`;
 }
 
@@ -163,16 +180,19 @@ function renderTransactions() {
     .filter(t => filter === 'todos' || t.type === filter)
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  document.getElementById('txTableBody').innerHTML = rows.map(t => `
+  document.getElementById('txTableBody').innerHTML = rows.map(t => {
+    const meta = Store.getCategoryMeta(t.type, t.category);
+    return `
     <tr>
       <td>${t.date}</td>
       <td>${t.type === 'ingreso' ? 'Ingreso' : 'Gasto'}</td>
-      <td>${t.category}</td>
+      <td><span class="cat-dot" style="background:${meta.color}"></span>${meta.emoji} ${t.category}</td>
       <td>${t.description || '—'}</td>
       <td class="amount ${t.type}">${t.type === 'ingreso' ? '+' : '-'}${formatCurrency(t.amount)}</td>
       <td><button class="delete-btn" data-id="${t.id}">Eliminar</button></td>
     </tr>
-  `).join('') || '<tr><td colspan="6" class="muted">Sin transacciones.</td></tr>';
+  `;
+  }).join('') || '<tr><td colspan="6" class="muted">Sin transacciones.</td></tr>';
 
   document.querySelectorAll('#txTableBody .delete-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -290,12 +310,41 @@ function renderSavings() {
   });
 }
 
+function renderCategories() {
+  const expenseList = document.getElementById('expenseCategoryList');
+  const incomeList = document.getElementById('incomeCategoryList');
+
+  function renderGroup(el, cats) {
+    if (!cats.length) { el.innerHTML = '<p class="muted">Sin categorías todavía.</p>'; return; }
+    el.innerHTML = cats.map(c => `
+      <div class="category-chip" style="--chip-color:${c.color}">
+        <span class="cat-dot" style="background:${c.color}"></span>
+        <span class="category-chip-emoji">${c.emoji}</span>
+        <span class="category-chip-name">${c.name}</span>
+        <button class="delete-btn" data-delete-category="${c.id}" title="Eliminar categoría">✕</button>
+      </div>
+    `).join('');
+  }
+
+  renderGroup(expenseList, Store.getCategories('gasto'));
+  renderGroup(incomeList, Store.getCategories('ingreso'));
+
+  document.querySelectorAll('[data-delete-category]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await Store.deleteCategory(btn.dataset.deleteCategory);
+      populateCategories();
+      renderAll();
+    });
+  });
+}
+
 function renderAll() {
   currencySelect.value = Store.data.settings.currency;
   renderDashboard();
   renderTransactions();
   renderDebts();
   renderSavings();
+  renderCategories();
 }
 
 window.addEventListener('resize', () => {
@@ -315,6 +364,7 @@ Auth.init(async (user) => {
     userBadge.classList.remove('hidden');
     document.getElementById('logoutBtn').classList.remove('hidden');
     await Store.loadAll();
+    populateCategories();
     renderAll();
   } else {
     Store.reset();
