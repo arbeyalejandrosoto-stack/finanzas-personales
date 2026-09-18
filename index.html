@@ -70,7 +70,7 @@
 
   <main>
     <!-- DASHBOARD -->
-    <section id="tab-dashboard" class="tab-panel active">
+    <section id="tab-dashboard" class="tab-panel active visible">
       <div class="hero">
         <span class="hero-label">Balance total</span>
         <span id="heroBalance" class="hero-figure">$0</span>
@@ -217,17 +217,22 @@
     <section id="tab-ajustes" class="tab-panel">
       <div class="card">
         <h2>Ajustes</h2>
-        <label class="full">Moneda
-          <select id="currencySelect">
-            <option value="USD">USD - Dólar</option>
-            <option value="COP">COP - Peso colombiano</option>
-            <option value="MXN">MXN - Peso mexicano</option>
-            <option value="EUR">EUR - Euro</option>
-            <option value="ARS">ARS - Peso argentino</option>
-            <option value="PEN">PEN - Sol peruano</option>
-            <option value="CLP">CLP - Peso chileno</option>
-          </select>
-        </label>
+        <div class="form-grid">
+          <label>Moneda
+            <select id="currencySelect">
+              <option value="USD">USD - Dólar</option>
+              <option value="COP">COP - Peso colombiano</option>
+              <option value="MXN">MXN - Peso mexicano</option>
+              <option value="EUR">EUR - Euro</option>
+              <option value="ARS">ARS - Peso argentino</option>
+              <option value="PEN">PEN - Sol peruano</option>
+              <option value="CLP">CLP - Peso chileno</option>
+            </select>
+          </label>
+          <label>Color de acento
+            <input type="color" id="accentColorInput" value="#2a78d6">
+          </label>
+        </div>
         <p class="muted" style="margin-top:16px">Tus datos se guardan de forma segura en tu cuenta (Supabase) y solo tú puedes verlas.</p>
         <button id="exportBtn" class="btn-secondary">Exportar datos (JSON)</button>
         <button id="clearBtn" class="btn-danger">Borrar todos los datos</button>

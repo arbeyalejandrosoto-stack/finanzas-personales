@@ -12,13 +12,28 @@
   });
 })();
 
-// --- Tabs ---
+// --- Accent color: apply cached value immediately so there's no flash before login ---
+(function initAccentColor() {
+  const saved = localStorage.getItem('accentColor');
+  if (saved) applyAccentColor(saved);
+})();
+
+// --- Tabs (crossfade transition) ---
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    const next = document.getElementById('tab-' + btn.dataset.tab);
+    const current = document.querySelector('.tab-panel.active');
+    if (current === next) return;
+
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+    if (current) {
+      current.classList.remove('visible');
+      setTimeout(() => current.classList.remove('active'), 220);
+    }
+    next.classList.add('active');
+    requestAnimationFrame(() => requestAnimationFrame(() => next.classList.add('visible')));
     renderAll();
   });
 });
@@ -103,6 +118,15 @@ const currencySelect = document.getElementById('currencySelect');
 currencySelect.addEventListener('change', async () => {
   await Store.setCurrency(currencySelect.value);
   renderAll();
+});
+
+const accentColorInput = document.getElementById('accentColorInput');
+accentColorInput.addEventListener('input', () => {
+  applyAccentColor(accentColorInput.value);
+});
+accentColorInput.addEventListener('change', async () => {
+  localStorage.setItem('accentColor', accentColorInput.value);
+  await Store.setAccentColor(accentColorInput.value);
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
@@ -352,6 +376,7 @@ function renderCategories() {
 
 function renderAll() {
   currencySelect.value = Store.data.settings.currency;
+  accentColorInput.value = Store.data.settings.accentColor;
   renderDashboard();
   renderTransactions();
   renderDebts();
@@ -376,6 +401,8 @@ Auth.init(async (user) => {
     userBadge.classList.remove('hidden');
     document.getElementById('logoutBtn').classList.remove('hidden');
     await Store.loadAll();
+    applyAccentColor(Store.data.settings.accentColor);
+    localStorage.setItem('accentColor', Store.data.settings.accentColor);
     populateCategories();
     renderAll();
   } else {

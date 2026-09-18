@@ -40,9 +40,11 @@ function mapTransactionFromDb(t) {
   };
 }
 
+const DEFAULT_ACCENT_COLOR = '#2a78d6';
+
 const Store = {
   data: {
-    settings: { currency: 'USD', locale: navigator.language || 'es-ES' },
+    settings: { currency: 'USD', locale: navigator.language || 'es-ES', accentColor: DEFAULT_ACCENT_COLOR },
     transactions: [],
     debts: [],
     savingsGoals: [],
@@ -64,7 +66,11 @@ const Store = {
     ]);
 
     if (settingsRes.data) {
-      this.data.settings = { currency: settingsRes.data.currency, locale: settingsRes.data.locale };
+      this.data.settings = {
+        currency: settingsRes.data.currency,
+        locale: settingsRes.data.locale,
+        accentColor: settingsRes.data.accent_color || DEFAULT_ACCENT_COLOR
+      };
     }
     this.data.transactions = (txRes.data || []).map(mapTransactionFromDb);
     this.data.debts = (debtsRes.data || []).map(mapDebtFromDb);
@@ -83,7 +89,7 @@ const Store = {
   reset() {
     this.userId = null;
     this.data = {
-      settings: { currency: 'USD', locale: navigator.language || 'es-ES' },
+      settings: { currency: 'USD', locale: navigator.language || 'es-ES', accentColor: DEFAULT_ACCENT_COLOR },
       transactions: [], debts: [], savingsGoals: [], categories: []
     };
   },
@@ -146,6 +152,11 @@ const Store = {
   async setCurrency(currency) {
     this.data.settings.currency = currency;
     await sb.from('user_settings').update({ currency }).eq('user_id', this.userId);
+  },
+
+  async setAccentColor(color) {
+    this.data.settings.accentColor = color;
+    await sb.from('user_settings').update({ accent_color: color }).eq('user_id', this.userId);
   },
 
   async addCategory({ type, name, emoji, color }) {
