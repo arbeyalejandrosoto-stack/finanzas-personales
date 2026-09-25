@@ -578,7 +578,14 @@ Auth.init(async (user) => {
   const app = document.getElementById('appRoot');
   const userBadge = document.getElementById('userBadge');
 
-  if (user) {
+  if (user && Auth.recovering) {
+    // Viene del correo de recuperación: pedir la nueva contraseña antes de mostrar la app.
+    showAuthForm('newPasswordForm');
+    showAuthMessage('');
+    history.replaceState(null, '', window.location.pathname);
+    authScreen.classList.remove('hidden');
+    app.classList.add('hidden');
+  } else if (user) {
     authScreen.classList.add('hidden');
     app.classList.remove('hidden');
     userBadge.textContent = user.email;

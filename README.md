@@ -10,7 +10,7 @@ Sirve la carpeta con cualquier servidor estático y abre la URL en el navegador:
 npx serve .        # o: python3 -m http.server
 ```
 
-Crea una cuenta con correo y contraseña. La app puede instalarse desde el navegador ("Instalar app" / "Agregar a pantalla de inicio").
+Crea una cuenta con correo y contraseña. Si la olvidas, usa **¿Olvidaste tu contraseña?** en la pantalla de inicio: recibirás un enlace por correo para elegir una nueva. La app puede instalarse desde el navegador ("Instalar app" / "Agregar a pantalla de inicio").
 
 > El service worker requiere `https` o `localhost`. Abrir `index.html` como archivo (`file://`) no permite instalarla.
 
@@ -42,6 +42,7 @@ Sin framework ni build: HTML, CSS y JavaScript planos.
 - **Row Level Security** en todas las tablas: cada usuario autenticado solo puede leer y modificar sus propias filas (`auth.uid() = user_id`); el rol anónimo no tiene acceso.
 - Las recurrentes se generan en el servidor con la función `materialize_recurring(p_today)` (`SECURITY INVOKER`, sujeta a RLS), de forma atómica e idempotente: abrir la app en varias pestañas no duplica transacciones.
 - La clave en `supabaseClient.js` es la clave pública del proyecto; es seguro exponerla porque el acceso lo restringe RLS.
+- Restablecer contraseña: el enlace del correo vuelve a la URL de la app, que debe estar en **Authentication → URL Configuration → Redirect URLs** de Supabase.
 - Migraciones SQL en `supabase/migrations/` (a partir de presupuestos y recurrentes; el esquema inicial se creó desde el panel de Supabase).
 
 ## Respaldo

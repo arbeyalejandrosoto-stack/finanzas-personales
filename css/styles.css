@@ -516,6 +516,8 @@ input[type="color"] {
   display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-secondary);
 }
 .full-width { width: 100%; }
+.auth-forgot { font-size: 13px; color: var(--accent-a); align-self: flex-end; margin-top: -4px; }
+.auth-hint { font-size: 13px; color: var(--text-secondary); margin: 0; }
 .auth-switch { font-size: 13px; color: var(--text-secondary); text-align: center; margin: 0; }
 .auth-switch a { color: var(--series-1); font-weight: 600; }
 .auth-message {
