@@ -101,6 +101,15 @@
           <div id="barTable" class="table-view hidden"></div>
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Presupuestos del mes</h2>
+          <button class="link-btn" data-goto-tab="ajustes">Configurar</button>
+        </div>
+        <div id="budgetAlerts"></div>
+        <div id="budgetList" class="item-list"></div>
+      </div>
     </section>
 
     <!-- TRANSACCIONES -->
@@ -131,6 +140,41 @@
       </div>
 
       <div class="card">
+        <h2>Transacciones recurrentes</h2>
+        <p class="muted">Salario, arriendo, suscripciones… Se registran solas en cada fecha.</p>
+        <form id="recurringForm" class="form-grid" style="margin-top:12px">
+          <label>Tipo
+            <select name="type" id="recType" required>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+            </select>
+          </label>
+          <label>Categoría
+            <select name="category" id="recCategory" required></select>
+          </label>
+          <label>Monto
+            <input type="number" name="amount" min="0.01" step="0.01" required>
+          </label>
+          <label>Frecuencia
+            <select name="frequency" required>
+              <option value="mensual">Mensual</option>
+              <option value="quincenal">Quincenal</option>
+              <option value="semanal">Semanal</option>
+              <option value="anual">Anual</option>
+            </select>
+          </label>
+          <label>Primera fecha
+            <input type="date" name="startDate" required>
+          </label>
+          <label class="full">Descripción
+            <input type="text" name="description" placeholder="Ej. Netflix">
+          </label>
+          <button type="submit" class="btn-primary">Programar</button>
+        </form>
+        <div id="recurringList" class="item-list" style="margin-top:16px"></div>
+      </div>
+
+      <div class="card">
         <div class="card-header">
           <h2>Historial</h2>
           <select id="txFilter">
@@ -139,10 +183,12 @@
             <option value="gasto">Gastos</option>
           </select>
         </div>
+        <div class="table-scroll">
         <table class="data-table">
           <thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
           <tbody id="txTableBody"></tbody>
         </table>
+        </div>
       </div>
     </section>
 
@@ -234,8 +280,28 @@
           </label>
         </div>
         <p class="muted" style="margin-top:16px">Tus datos se guardan de forma segura en tu cuenta (Supabase) y solo tú puedes verlas.</p>
-        <button id="exportBtn" class="btn-secondary">Exportar datos (JSON)</button>
-        <button id="clearBtn" class="btn-danger">Borrar todos los datos</button>
+        <div class="settings-actions">
+          <button id="exportBtn" class="btn-secondary">Exportar datos (JSON)</button>
+          <button id="importBtn" class="btn-secondary">Importar datos (JSON)</button>
+          <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+          <button id="clearBtn" class="btn-danger">Borrar todos los datos</button>
+        </div>
+        <div id="importMessage" class="auth-message hidden"></div>
+      </div>
+
+      <div class="card">
+        <h2>Presupuestos mensuales</h2>
+        <p class="muted">Define un límite por categoría de gasto. Verás una alerta al llegar al 80% y al superarlo.</p>
+        <form id="budgetForm" class="form-grid" style="margin-top:12px">
+          <label>Categoría
+            <select name="categoryId" id="budgetCategory" required></select>
+          </label>
+          <label>Límite mensual
+            <input type="number" name="amount" min="0.01" step="0.01" required>
+          </label>
+          <button type="submit" class="btn-primary">Guardar presupuesto</button>
+        </form>
+        <div id="budgetSettingsList" class="category-list" style="margin-top:16px"></div>
       </div>
 
       <div class="card">

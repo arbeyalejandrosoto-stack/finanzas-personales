@@ -1,3 +1,15 @@
+// --- Utils ---
+// Todo texto ingresado por el usuario (o importado) pasa por aquí antes de ir a innerHTML.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[ch]);
+}
+
+window.addEventListener('unhandledrejection', (e) => {
+  alert('No se pudo completar la acción: ' + (e.reason?.message || e.reason));
+});
+
 // --- Theme ---
 (function initTheme() {
   const saved = localStorage.getItem('theme');
@@ -40,6 +52,9 @@ function switchTab(tabName) {
 document.querySelectorAll('.tab-btn, .bottom-nav-btn').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
+document.querySelectorAll('[data-goto-tab]').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.gotoTab));
+});
 
 // --- Table toggle ---
 document.querySelectorAll('[data-toggle-table]').forEach(btn => {
@@ -51,19 +66,27 @@ document.querySelectorAll('[data-toggle-table]').forEach(btn => {
 });
 
 // --- Populate category selects ---
-function populateCategories() {
-  const type = document.getElementById('txType').value;
+function categoryOptions(type, valueKey = 'name') {
   const cats = Store.getCategories(type);
-  const select = document.getElementById('txCategory');
-  select.innerHTML = cats.length
-    ? cats.map(c => `<option value="${c.name}">${c.emoji} ${c.name}</option>`).join('')
+  return cats.length
+    ? cats.map(c => `<option value="${escapeHtml(c[valueKey])}">${escapeHtml(c.emoji)} ${escapeHtml(c.name)}</option>`).join('')
     : '<option value="" disabled selected>Crea una categoría en Ajustes</option>';
 }
+
+function populateCategories() {
+  document.getElementById('txCategory').innerHTML = categoryOptions(document.getElementById('txType').value);
+  document.getElementById('recCategory').innerHTML = categoryOptions(document.getElementById('recType').value);
+  document.getElementById('budgetCategory').innerHTML = categoryOptions('gasto', 'id');
+}
 document.getElementById('txType').addEventListener('change', populateCategories);
+document.getElementById('recType').addEventListener('change', populateCategories);
 populateCategories();
 
-// default date = today
-document.querySelector('#transactionForm [name="date"]').value = new Date().toISOString().slice(0, 10);
+function resetDateInputs() {
+  document.querySelector('#transactionForm [name="date"]').value = localDateKey();
+  document.querySelector('#recurringForm [name="startDate"]').value = localDateKey();
+}
+resetDateInputs();
 
 // --- Forms ---
 document.getElementById('transactionForm').addEventListener('submit', async (e) => {
@@ -74,7 +97,30 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
     category: fd.get('category'), description: fd.get('description'), date: fd.get('date')
   });
   e.target.reset();
-  document.querySelector('#transactionForm [name="date"]').value = new Date().toISOString().slice(0, 10);
+  resetDateInputs();
+  populateCategories();
+  renderAll();
+});
+
+document.getElementById('recurringForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  await Store.addRecurring({
+    type: fd.get('type'), amount: fd.get('amount'), category: fd.get('category'),
+    description: fd.get('description'), frequency: fd.get('frequency'), startDate: fd.get('startDate')
+  });
+  e.target.reset();
+  resetDateInputs();
+  populateCategories();
+  renderAll();
+});
+
+document.getElementById('budgetForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  if (!fd.get('categoryId')) return;
+  await Store.setBudget(fd.get('categoryId'), fd.get('amount'));
+  e.target.reset();
   populateCategories();
   renderAll();
 });
@@ -133,24 +179,59 @@ accentColorInput.addEventListener('change', async () => {
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(Store.data, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(Store.exportData(), null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `finanzas-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `finanzas-${localDateKey()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 });
 
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+const importFile = document.getElementById('importFile');
+
+function showImportMessage(msg, isError = false) {
+  const el = document.getElementById('importMessage');
+  el.textContent = msg;
+  el.classList.toggle('error', isError);
+  el.classList.toggle('hidden', !msg);
+}
+
+document.getElementById('importBtn').addEventListener('click', () => importFile.click());
+
+importFile.addEventListener('change', async () => {
+  const file = importFile.files[0];
+  importFile.value = ''; // permite volver a elegir el mismo archivo
+  if (!file) return;
+  if (file.size > MAX_IMPORT_BYTES) {
+    showImportMessage('El archivo supera 5 MB.', true);
+    return;
+  }
+  let raw;
+  try {
+    raw = JSON.parse(await file.text());
+  } catch {
+    showImportMessage('El archivo no es un JSON válido.', true);
+    return;
+  }
+  if (!confirm('Los datos del archivo se agregarán a los actuales (los registros ya existentes se omiten). ¿Continuar?')) return;
+  showImportMessage('Importando...');
+  try {
+    const r = await Store.importData(raw);
+    showImportMessage(`Importado: ${r.transactions} transacciones, ${r.debts} deudas, ${r.savingsGoals} metas, ` +
+      `${r.categories} categorías, ${r.budgets} presupuestos, ${r.recurring} recurrentes.`);
+  } catch (err) {
+    showImportMessage('Error al importar: ' + err.message, true);
+  }
+  applyAccentColor(Store.data.settings.accentColor);
+  populateCategories();
+  renderAll();
+});
+
 document.getElementById('clearBtn').addEventListener('click', async () => {
   if (!confirm('¿Seguro que quieres borrar todos tus datos? Esta acción no se puede deshacer.')) return;
-  await Promise.all([
-    sb.from('transactions').delete().eq('user_id', Store.userId),
-    sb.from('debts').delete().eq('user_id', Store.userId),
-    sb.from('savings_goals').delete().eq('user_id', Store.userId),
-    sb.from('categories').delete().eq('user_id', Store.userId)
-  ]);
-  await Store.loadAll();
+  await Store.clearAll();
   populateCategories();
   renderAll();
 });
@@ -190,10 +271,106 @@ function renderDashboard() {
   renderLineChart(document.getElementById('lineChart'), series);
   renderLineTable(series);
 
-  const monthKey = new Date().toISOString().slice(0, 7);
-  const catData = Store.getExpensesByCategory(monthKey);
+  const catData = Store.getExpensesByCategory(currentMonthKey());
   renderBarChart(document.getElementById('barChart'), catData);
   renderBarTable(catData);
+  renderBudgets();
+}
+
+function renderBudgets() {
+  const status = Store.getBudgetStatus();
+  const alerts = document.getElementById('budgetAlerts');
+  const list = document.getElementById('budgetList');
+
+  const over = status.filter(b => b.level === 'over');
+  const warning = status.filter(b => b.level === 'warning');
+  const names = items => items.map(b => `${escapeHtml(b.emoji)} ${escapeHtml(b.category)}`).join(', ');
+  alerts.innerHTML = [
+    over.length ? `<div class="budget-alert over">🚨 Presupuesto superado: ${names(over)}</div>` : '',
+    warning.length ? `<div class="budget-alert warning">⚠️ Cerca del límite: ${names(warning)}</div>` : ''
+  ].join('');
+
+  if (!status.length) {
+    list.innerHTML = '<p class="muted">Aún no tienes presupuestos. Créalos en Ajustes.</p>';
+    return;
+  }
+  list.innerHTML = status.map(b => `
+    <div class="budget-row">
+      <div class="item-card-header">
+        <span><span class="cat-dot" style="background:${b.color}"></span>${escapeHtml(b.emoji)} ${escapeHtml(b.category)}</span>
+        <span class="muted">${formatCurrency(b.spent)} de ${formatCurrency(b.amount)}</span>
+      </div>
+      <div class="meter-track"><div class="meter-fill ${b.level}" style="width:${Math.min(100, b.pct)}%"></div></div>
+      <div class="meter-labels">
+        <span class="budget-pct ${b.level}">${b.pct.toFixed(0)}%</span>
+        <span class="muted">${b.spent <= b.amount
+          ? `Disponible: ${formatCurrency(b.amount - b.spent)}`
+          : `Excedido: ${formatCurrency(b.spent - b.amount)}`}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderBudgetSettings() {
+  const el = document.getElementById('budgetSettingsList');
+  const status = Store.getBudgetStatus();
+  if (!status.length) { el.innerHTML = '<p class="muted">Sin presupuestos todavía.</p>'; return; }
+  el.innerHTML = status.map(b => `
+    <div class="category-chip" style="--chip-color:${b.color}">
+      <span class="category-chip-emoji">${escapeHtml(b.emoji)}</span>
+      <span class="category-chip-name">${escapeHtml(b.category)} · ${formatCurrency(b.amount)}</span>
+      <button class="delete-btn" data-delete-budget="${b.id}" title="Eliminar presupuesto">✕</button>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-delete-budget]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await Store.deleteBudget(btn.dataset.deleteBudget);
+      renderAll();
+    });
+  });
+}
+
+const FREQUENCY_LABELS = { semanal: 'Semanal', quincenal: 'Quincenal', mensual: 'Mensual', anual: 'Anual' };
+
+function renderRecurring() {
+  const list = document.getElementById('recurringList');
+  const items = Store.data.recurring;
+  if (!items.length) {
+    list.innerHTML = '<p class="muted">No tienes transacciones recurrentes.</p>';
+    return;
+  }
+  list.innerHTML = items.map(r => {
+    const meta = Store.getCategoryMeta(r.type, r.category);
+    return `
+    <div class="item-card ${r.active ? '' : 'paused'}">
+      <div class="item-card-header">
+        <strong><span class="cat-dot" style="background:${meta.color}"></span>${escapeHtml(meta.emoji)} ${escapeHtml(r.description || r.category)}</strong>
+        <span class="tag">${FREQUENCY_LABELS[r.frequency]}${r.active ? '' : ' · Pausada'}</span>
+      </div>
+      <div class="muted">
+        <span class="amount ${r.type}">${r.type === 'ingreso' ? '+' : '-'}${formatCurrency(r.amount)}</span>
+        · ${escapeHtml(r.category)} · ${r.active ? 'Próxima: ' + r.nextDate : 'Sin programar'}
+      </div>
+      <div class="item-actions">
+        <button class="small-btn" data-toggle-recurring="${r.id}" data-active="${r.active}">${r.active ? 'Pausar' : 'Reanudar'}</button>
+        <button class="delete-btn" data-delete-recurring="${r.id}">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-toggle-recurring]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await Store.setRecurringActive(btn.dataset.toggleRecurring, btn.dataset.active !== 'true');
+      renderAll();
+    });
+  });
+  list.querySelectorAll('[data-delete-recurring]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar esta transacción recurrente? Las transacciones ya registradas se conservan.')) return;
+      await Store.deleteRecurring(btn.dataset.deleteRecurring);
+      renderAll();
+    });
+  });
 }
 
 function renderLineTable(series) {
@@ -209,7 +386,7 @@ function renderBarTable(items) {
   if (!items.length) { el.innerHTML = '<p class="muted">Sin datos.</p>'; return; }
   el.innerHTML = `<table class="data-table">
     <thead><tr><th>Categoría</th><th>Monto</th></tr></thead>
-    <tbody>${items.map(i => `<tr><td><span class="cat-dot" style="background:${i.color}"></span>${i.emoji} ${i.category}</td><td>${formatCurrency(i.amount)}</td></tr>`).join('')}</tbody>
+    <tbody>${items.map(i => `<tr><td><span class="cat-dot" style="background:${i.color}"></span>${escapeHtml(i.emoji)} ${escapeHtml(i.category)}</td><td>${formatCurrency(i.amount)}</td></tr>`).join('')}</tbody>
   </table>`;
 }
 
@@ -225,8 +402,8 @@ function renderTransactions() {
     <tr>
       <td>${t.date}</td>
       <td>${t.type === 'ingreso' ? 'Ingreso' : 'Gasto'}</td>
-      <td><span class="cat-dot" style="background:${meta.color}"></span>${meta.emoji} ${t.category}</td>
-      <td>${t.description || '—'}</td>
+      <td><span class="cat-dot" style="background:${meta.color}"></span>${escapeHtml(meta.emoji)} ${escapeHtml(t.category)}</td>
+      <td>${escapeHtml(t.description) || '—'}</td>
       <td class="amount ${t.type}">${t.type === 'ingreso' ? '+' : '-'}${formatCurrency(t.amount)}</td>
       <td><button class="delete-btn" data-id="${t.id}">Eliminar</button></td>
     </tr>
@@ -261,10 +438,10 @@ function renderDebts() {
     return `
     <div class="item-card">
       <div class="item-card-header">
-        <strong>${d.name}</strong>
+        <strong>${escapeHtml(d.name)}</strong>
         <span class="tag">${d.type === 'debo' ? 'Yo debo' : 'Me deben'}</span>
       </div>
-      ${d.description ? `<div class="muted">${d.description}</div>` : ''}
+      ${d.description ? `<div class="muted">${escapeHtml(d.description)}</div>` : ''}
       <div class="meter-block" data-meter="${d.id}"></div>
       <div class="muted">Pendiente: ${formatCurrency(pending)} ${d.dueDate ? '· Vence: ' + d.dueDate : ''}</div>
       <div class="item-actions">
@@ -315,7 +492,7 @@ function renderSavings() {
   list.innerHTML = goals.map(g => `
     <div class="item-card">
       <div class="item-card-header">
-        <strong>${g.name}</strong>
+        <strong>${escapeHtml(g.name)}</strong>
         ${g.deadline ? `<span class="tag">Meta: ${g.deadline}</span>` : ''}
       </div>
       <div class="meter-block" data-smeter="${g.id}"></div>
@@ -358,8 +535,8 @@ function renderCategories() {
     el.innerHTML = cats.map(c => `
       <div class="category-chip" style="--chip-color:${c.color}">
         <span class="cat-dot" style="background:${c.color}"></span>
-        <span class="category-chip-emoji">${c.emoji}</span>
-        <span class="category-chip-name">${c.name}</span>
+        <span class="category-chip-emoji">${escapeHtml(c.emoji)}</span>
+        <span class="category-chip-name">${escapeHtml(c.name)}</span>
         <button class="delete-btn" data-delete-category="${c.id}" title="Eliminar categoría">✕</button>
       </div>
     `).join('');
@@ -370,6 +547,8 @@ function renderCategories() {
 
   document.querySelectorAll('[data-delete-category]').forEach(btn => {
     btn.addEventListener('click', async () => {
+      const hasBudget = Store.data.budgets.some(b => b.categoryId === btn.dataset.deleteCategory);
+      if (hasBudget && !confirm('Esta categoría tiene un presupuesto que también se eliminará. ¿Continuar?')) return;
       await Store.deleteCategory(btn.dataset.deleteCategory);
       populateCategories();
       renderAll();
@@ -385,6 +564,8 @@ function renderAll() {
   renderDebts();
   renderSavings();
   renderCategories();
+  renderBudgetSettings();
+  renderRecurring();
 }
 
 window.addEventListener('resize', () => {
@@ -403,6 +584,7 @@ Auth.init(async (user) => {
     userBadge.textContent = user.email;
     userBadge.classList.remove('hidden');
     document.getElementById('logoutBtn').classList.remove('hidden');
+    await Store.syncRecurring().catch(err => console.error('Recurrentes:', err));
     await Store.loadAll();
     applyAccentColor(Store.data.settings.accentColor);
     localStorage.setItem('accentColor', Store.data.settings.accentColor);
